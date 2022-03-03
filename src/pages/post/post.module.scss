@@ -1,1 +1,39 @@
-// TODO
+.container {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 2rem;
+    
+    img {
+        margin-top: 2rem;
+        height: auto;
+        width: 100%;
+    }
+}
+
+.content {
+    padding: 0 2rem;
+    margin: 2rem auto;
+    max-width: 720px;
+    h1{
+        margin: 2rem auto 1rem;
+        font-size: 2.5rem;
+        font-weight: 600;
+    }
+
+    span{
+        margin-left: 0.5rem;
+        margin-right: 1rem;
+    }
+
+    .post{
+        margin-top: 2rem;
+        justify-content: end;
+    }
+
+    h2{
+        margin: 1rem auto ;
+    }
+}
+
+
+
