@@ -1,14 +1,21 @@
 import { GetStaticPaths, GetStaticProps } from 'next';
+import { RichText } from 'prismic-dom';
 
+import { format } from 'date-fns';
+import ptBR from 'date-fns/locale/pt-BR';
+
+import { FaUser } from 'react-icons/fa';
+import { BiTime } from 'react-icons/bi';
+import { MdOutlineDateRange } from 'react-icons/md';
+
+import { useRouter } from 'next/router';
+
+import Prismic from '@prismicio/client';
 import { getPrismicClient } from '../../services/prismic';
 
 import commonStyles from '../../styles/common.module.scss';
 import styles from './post.module.scss';
-
-import Prismic from "@prismicio/client";
-import { RichText } from 'prismic-dom';
-import {FiCalendar, FiUser, FiClock} from 'react-icons/fi';
-import { useRouter } from 'next/router';
+import { useEffect } from 'react';
 
 interface Post {
   first_publication_date: string | null;
@@ -18,7 +25,7 @@ interface Post {
       url: string;
     };
     author: string;
-    content: {
+    content?: {
       heading: string;
       body: {
         text: string;
@@ -31,8 +38,26 @@ interface PostProps {
   post: Post;
 }
 
-export default function Post({post}: PostProps) {
+export const UtterancesComments: React.FC = () => (
+  <section
+    ref={elem => {
+      if (!elem) {
+        return;
+      }
+      const scriptElem = document.createElement('script');
+      scriptElem.src = 'https://utteranc.es/client.js';
+      scriptElem.async = true;
+      scriptElem.crossOrigin = 'anonymous';
+      scriptElem.setAttribute('repo', 'Nhed1/ignite-challenge-blog-nextjs');
+      scriptElem.setAttribute('issue-term', 'pathname');
+      scriptElem.setAttribute('label', 'blog-comment');
+      scriptElem.setAttribute('theme', 'github-dark');
+      elem.appendChild(scriptElem);
+    }}
+  />
+);
 
+export default function Post({ post }: PostProps): JSX.Element {
   const router = useRouter();
   if (router.isFallback) {
     return <span>Carregando...</span>;
@@ -52,62 +77,79 @@ export default function Post({post}: PostProps) {
 
   const timeOfReading = Math.ceil(totalWords / AVARAGE_READ_TIME);
 
-  return(
+  return (
     <>
-    <main className={styles.container}>
-      <img src={post.data.banner.url} alt="banner" />
-      <div className={styles.content}>
-        <h1>{post.data.title}</h1>
-        <FiCalendar/><span> { new Date(post.first_publication_date).toLocaleDateString('pt-BR', {
-          day: '2-digit',
-          month: 'long',
-          year: 'numeric'
-        })} </span>
-         <FiUser/><span>{post.data.author}</span>
-         <FiClock/><span>{timeOfReading} min</span>
-        <div className={styles.post}>
-          {post.data.content.map(contentElement => {
-            return (
-              <article key={contentElement.heading}>
-                <h2>{contentElement.heading}</h2>
-                <div
-                        className={styles.postContent}
-                        dangerouslySetInnerHTML={{__html:RichText.asHtml(contentElement.body)}}/>
-              </article>
-            )
-          })}
+      <div className={styles.container}>
+        <img src={post.data.banner.url} alt="banner" />
+        <div className={styles.content}>
+          <header className={styles.header}>
+            <h1>{post.data.title}</h1>
+            <div className={styles.info}>
+              <span>
+                <MdOutlineDateRange />
+                {format(new Date(post.first_publication_date), 'dd MMM yyyy', {
+                  locale: ptBR,
+                })}
+              </span>
+              <span>
+                <FaUser />
+                {post.data.author}
+              </span>
+              <time>
+                <BiTime />
+                {timeOfReading} min
+              </time>
+            </div>
+          </header>
+          <div>
+            {post.data.content.map(elementContent => {
+              return (
+                <article
+                  key={elementContent.heading}
+                  className={styles.content}
+                >
+                  <h2>{elementContent.heading}</h2>
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: RichText.asHtml(elementContent.body),
+                    }}
+                  ></div>
+                </article>
+              );
+            })}
+          </div>
+          <UtterancesComments />
         </div>
       </div>
-      
-    </main>
-    
     </>
-  )
+  );
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
   const prismic = getPrismicClient();
-  const posts = await prismic.query(
-    Prismic.Predicates.at('document.type', 'post'),
+  const response = await prismic.query(
+    [Prismic.predicates.at('document.type', 'posts')],
     {
       fetch: [],
       pageSize: 10,
     }
   );
+
   return {
-    paths: posts.results.map((post) => {
-      return { params: { slug: post.uid, }}
+    paths: response.results.map(post => {
+      return {
+        params: { slug: post.uid },
+      };
     }),
     fallback: true,
-  }
+  };
 };
 
 export const getStaticProps: GetStaticProps = async context => {
   const { slug } = context.params;
   const prismic = getPrismicClient();
-  const post = await prismic.getByUID('post', String(slug), {});
 
-  console.log(post);
+  const post = await prismic.getByUID('posts', String(slug), {});
 
-  return { props: { post }};
+  return { props: { post }, revalidate: 60 * 5 }; // 5 minutes
 };
